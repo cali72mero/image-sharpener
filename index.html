@@ -1,0 +1,1068 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>SharpVision Pro – Auto Bildverbesserung</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: #eee; min-height: 100vh;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        header {
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px);
+            padding: 18px; text-align: center;
+            border-bottom: 2px solid rgba(255,215,0,0.3);
+            position: sticky; top: 0; z-index: 100;
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(90deg, #ffd700, #ffaa00);
+            -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+            display: inline;
+        }
+
+        .badge {
+            background: linear-gradient(90deg, #ffd700, #ff8c00);
+            color: #000; padding: 2px 10px; border-radius: 20px;
+            font-size: 0.6rem; font-weight: bold; margin-left: 6px;
+        }
+
+        header p { color: #888; font-size: 0.75rem; margin-top: 4px; }
+
+        .auto-badge {
+            display: inline-block;
+            background: linear-gradient(90deg, #00b894, #00cec9);
+            color: #000; padding: 3px 12px; border-radius: 20px;
+            font-size: 0.65rem; font-weight: bold; margin-top: 6px;
+        }
+
+        .tabs {
+            display: flex; justify-content: center; gap: 4px;
+            padding: 12px 10px 0; max-width: 1200px; margin: 0 auto;
+        }
+
+        .tab {
+            padding: 10px 18px; background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1); border-bottom: none;
+            border-radius: 10px 10px 0 0; cursor: pointer;
+            color: #888; font-weight: bold; font-size: 0.8rem;
+        }
+
+        .tab.active { background: rgba(255,215,0,0.1); color: #ffd700; border-color: rgba(255,215,0,0.3); }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 12px 40px; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        .upload-zone {
+            border: 2px dashed rgba(255,215,0,0.4);
+            border-radius: 16px; padding: 35px 15px;
+            text-align: center; cursor: pointer;
+            background: rgba(255,255,255,0.02);
+            margin: 15px 0; position: relative; overflow: hidden;
+        }
+
+        .upload-zone:active { border-color: #ffd700; background: rgba(255,215,0,0.05); }
+        .upload-zone h2 { color: #ffd700; margin-bottom: 6px; font-size: 1.1rem; }
+        .upload-zone p { color: #777; font-size: 0.8rem; }
+
+        .upload-zone input[type="file"] {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%; opacity: 0;
+            cursor: pointer; z-index: 10;
+        }
+
+        .ios-hint {
+            margin-top: 10px; font-size: 0.7rem; color: #ffd700;
+            background: rgba(255,215,0,0.1); padding: 6px 12px;
+            border-radius: 8px; display: inline-block;
+        }
+
+        .auto-info {
+            background: rgba(0,184,148,0.08);
+            border: 1px solid rgba(0,184,148,0.3);
+            border-radius: 12px; padding: 15px;
+            margin: 15px 0; text-align: center;
+        }
+
+        .auto-info h3 { color: #00b894; font-size: 0.9rem; margin-bottom: 8px; }
+        .auto-info p { color: #aaa; font-size: 0.75rem; line-height: 1.5; }
+
+        .controls {
+            background: rgba(0,0,0,0.3); border-radius: 12px;
+            padding: 15px; margin: 12px 0;
+            display: flex; flex-wrap: wrap; gap: 10px;
+            align-items: center; justify-content: center;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .btn {
+            padding: 14px 22px; border: none; border-radius: 10px;
+            cursor: pointer; font-size: 0.85rem; font-weight: bold;
+            touch-action: manipulation;
+        }
+
+        .btn-gold { background: linear-gradient(90deg, #ffd700, #ff8c00); color: #000; font-size: 1rem; }
+        .btn-gold:active { transform: scale(0.95); }
+        .btn-green { background: linear-gradient(90deg, #00b894, #00cec9); color: #000; }
+        .btn-green:active { transform: scale(0.95); }
+        .btn-red { background: linear-gradient(90deg, #e94560, #c0392b); color: #fff; }
+        .btn:disabled { opacity: 0.3; pointer-events: none; }
+
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+            gap: 12px; margin: 12px 0;
+        }
+
+        .image-card {
+            background: rgba(0,0,0,0.3); border-radius: 12px;
+            overflow: hidden; border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .image-card img { width: 100%; height: 130px; object-fit: cover; display: block; }
+        .image-card .card-info { padding: 8px; }
+        .image-card .card-info .name { font-size: 0.7rem; color: #ccc; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .image-card .card-info .size { font-size: 0.6rem; color: #ffd700; margin-top: 2px; }
+
+        .image-card .card-info .auto-settings {
+            margin-top: 5px; padding: 5px 8px;
+            background: rgba(0,184,148,0.1);
+            border-radius: 6px; font-size: 0.55rem; color: #00b894;
+            line-height: 1.4;
+        }
+
+        .image-card .card-info .quality-badge {
+            display: inline-block; margin-top: 4px;
+            padding: 2px 8px; border-radius: 10px;
+            font-size: 0.55rem; font-weight: bold;
+        }
+
+        .q-good { background: rgba(0,184,148,0.2); color: #00b894; }
+        .q-medium { background: rgba(255,215,0,0.2); color: #ffd700; }
+        .q-bad { background: rgba(233,69,96,0.2); color: #e94560; }
+
+        .image-card .card-actions {
+            padding: 6px 8px; display: flex; gap: 4px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .image-card .card-actions button {
+            flex: 1; padding: 8px 4px; border: none; border-radius: 5px;
+            cursor: pointer; font-size: 0.6rem; font-weight: bold;
+        }
+
+        .card-btn-save { background: rgba(0,184,148,0.2); color: #00b894; }
+        .card-btn-del { background: rgba(233,69,96,0.2); color: #e94560; }
+
+        .status { text-align: center; padding: 8px; color: #00b894; font-weight: bold; min-height: 28px; font-size: 0.8rem; }
+
+        .error-msg {
+            text-align: center; padding: 10px; color: #e94560;
+            font-weight: bold; font-size: 0.8rem;
+            background: rgba(233,69,96,0.1); border-radius: 8px;
+            margin: 10px 0; display: none;
+        }
+
+        .progress-container {
+            margin: 15px 0; display: none;
+        }
+
+        .progress-bar {
+            width: 100%; height: 10px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 5px; overflow: hidden;
+        }
+
+        .progress-bar .fill {
+            height: 100%; width: 0%;
+            background: linear-gradient(90deg, #ffd700, #00b894);
+            border-radius: 5px; transition: width 0.3s;
+        }
+
+        .progress-text { text-align: center; font-size: 0.75rem; color: #aaa; margin-top: 5px; }
+
+        .storage-bar {
+            background: rgba(0,0,0,0.3); border-radius: 12px;
+            padding: 18px; margin: 15px 0;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .storage-bar h3 { color: #ffd700; margin-bottom: 10px; font-size: 0.85rem; }
+        .storage-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        .stat-box { text-align: center; }
+        .stat-box .num { font-size: 1.2rem; font-weight: bold; color: #ffd700; }
+        .stat-box .lbl { font-size: 0.55rem; color: #888; text-transform: uppercase; margin-top: 2px; }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px; margin: 12px 0;
+        }
+
+        .gallery-item {
+            background: rgba(0,0,0,0.3); border-radius: 12px;
+            overflow: hidden; border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .gallery-item img { width: 100%; height: 120px; object-fit: cover; display: block; }
+        .gallery-item .g-info { padding: 8px; }
+        .gallery-item .g-info .g-name { font-size: 0.65rem; color: #ccc; }
+        .gallery-item .g-info .g-size { font-size: 0.6rem; color: #00b894; margin-top: 2px; }
+        .gallery-item .g-info .g-date { font-size: 0.55rem; color: #666; margin-top: 2px; }
+
+        .gallery-item .g-actions {
+            padding: 6px 8px; display: flex; gap: 4px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .gallery-item .g-actions button {
+            flex: 1; padding: 8px 4px; border: none; border-radius: 5px;
+            cursor: pointer; font-size: 0.6rem; font-weight: bold;
+        }
+
+        .g-btn-dl { background: rgba(0,184,148,0.2); color: #00b894; }
+        .g-btn-del { background: rgba(233,69,96,0.2); color: #e94560; }
+
+        .empty-state { text-align: center; padding: 40px 15px; color: #555; }
+        .empty-state .icon { font-size: 2.5rem; margin-bottom: 10px; }
+
+        .help-section {
+            background: rgba(0,0,0,0.3); border-radius: 16px;
+            padding: 20px; margin-top: 15px;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .help-section h2 { color: #ffd700; margin-bottom: 12px; }
+        .help-section h3 { color: #ffaa00; margin: 12px 0 6px; font-size: 0.9rem; }
+        .help-section p, .help-section li { color: #bbb; line-height: 1.6; font-size: 0.85rem; }
+        .help-section ul { padding-left: 18px; }
+
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%; background: rgba(0,0,0,0.9);
+            z-index: 200; justify-content: center; align-items: center;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: #1a1a2e; border-radius: 16px; padding: 15px;
+            max-width: 95vw; max-height: 90vh; overflow: auto;
+            border: 1px solid rgba(255,215,0,0.3); text-align: center;
+        }
+
+        .modal img { max-width: 100%; max-height: 70vh; border-radius: 8px; }
+        .modal h3 { color: #ffd700; margin-bottom: 10px; font-size: 0.85rem; }
+
+        .modal .close-btn {
+            margin-top: 12px; padding: 12px 30px;
+            background: #e94560; color: #fff; border: none;
+            border-radius: 8px; cursor: pointer; font-weight: bold;
+        }
+
+        footer { text-align: center; padding: 18px; color: #555; border-top: 1px solid rgba(255,215,0,0.15); margin-top: 25px; font-size: 0.75rem; }
+        footer .pro { color: #ffd700; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>SharpVision <span class="badge">PRO</span></h1>
+    <p>Automatische Bildverbesserung – Beste Qualität für jedes Bild</p>
+    <div class="auto-badge">🤖 VOLL-AUTOMATISCH – Keine Einstellungen nötig</div>
+</header>
+
+<div class="tabs">
+    <div class="tab active" data-tab="bearbeiten">✨ Verbessern</div>
+    <div class="tab" data-tab="galerie">📁 Meine Fotos</div>
+    <div class="tab" data-tab="hilfe">❓ Hilfe</div>
+</div>
+
+<div class="container">
+
+    <!-- VERBESSERN -->
+    <div class="tab-content active" id="tab-bearbeiten">
+
+        <div class="upload-zone">
+            <input type="file" id="fileInput" accept="image/*,image/heic,image/heif,image/jpeg,image/png,image/webp" multiple>
+            <h2>📷 Fotos hinzufügen</h2>
+            <p>Tippe hier – mehrere Bilder gleichzeitig</p>
+            <div class="ios-hint">📱 iPhone: Tippen → Fotomediathek → Bilder wählen → Fertig</div>
+        </div>
+
+        <div class="error-msg" id="errorMsg"></div>
+
+        <div class="auto-info">
+            <h3>🤖 Automatische Qualitätsanalyse</h3>
+            <p>Jedes Bild wird automatisch analysiert: Unschärfe, Rauschen, Kontrast, Farben.<br>
+            Das Programm findet <strong>selbstständig die beste Einstellung</strong> für maximale Qualität.<br>
+            Du musst <strong>nichts einstellen</strong> – einfach Bilder hinzufügen und drücken.</p>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-gold" id="btnAutoEnhance" disabled>✨ Automatisch verbessern</button>
+            <button class="btn btn-green" id="btnSaveAll" disabled>💾 Alle speichern</button>
+            <button class="btn btn-green" id="btnDownloadAll" disabled>📥 Alle downloaden</button>
+            <button class="btn btn-red" id="btnClearAll" disabled>🗑️ Alle entfernen</button>
+        </div>
+
+        <div class="progress-container" id="progressContainer">
+            <div class="progress-bar"><div class="fill" id="progressFill"></div></div>
+            <div class="progress-text" id="progressText">Analysiere...</div>
+        </div>
+
+        <div class="status" id="status"></div>
+        <div class="image-grid" id="imageGrid"></div>
+
+        <div class="empty-state" id="emptyState">
+            <div class="icon">🖼️</div>
+            <p>Noch keine Bilder.<br>Tippe oben auf "Fotos hinzufügen".</p>
+        </div>
+    </div>
+
+    <!-- GALERIE -->
+    <div class="tab-content" id="tab-galerie">
+        <div class="storage-bar">
+            <h3>💽 Speicher</h3>
+            <div class="storage-stats">
+                <div class="stat-box"><div class="num" id="statCount">0</div><div class="lbl">Fotos</div></div>
+                <div class="stat-box"><div class="num" id="statSize">0 KB</div><div class="lbl">Größe</div></div>
+                <div class="stat-box"><div class="num" id="statSaved">0 KB</div><div class="lbl">Gespart</div></div>
+            </div>
+        </div>
+        <div class="controls">
+            <button class="btn btn-green" id="btnDownloadGallery">📥 Alle als ZIP</button>
+            <button class="btn btn-red" id="btnClearGallery">🗑️ Galerie leeren</button>
+        </div>
+        <div class="gallery-grid" id="galleryGrid"></div>
+        <div class="empty-state" id="galleryEmpty">
+            <div class="icon">📁</div>
+            <p>Noch keine Fotos gespeichert.</p>
+        </div>
+    </div>
+
+    <!-- HILFE -->
+    <div class="tab-content" id="tab-hilfe">
+        <div class="help-section">
+            <h2>❓ Hilfe</h2>
+            <h3>🤖 Wie funktioniert die Automatik?</h3>
+            <ul>
+                <li><strong>Unschärfe-Analyse:</strong> Misst wie verschwommen das Bild ist (Laplacian-Varianz)</li>
+                <li><strong>Rausch-Analyse:</strong> Erkennt Bildrauschen in glatten Flächen</li>
+                <li><strong>Kontrast-Analyse:</strong> Prüft ob das Bild zu flach oder zu hart ist</li>
+                <li><strong>Farb-Analyse:</strong> Erkennt blasse oder übersättigte Farben</li>
+                <li><strong>Auto-Einstellung:</strong> Berechnet die perfekten Werte für jedes Bild einzeln</li>
+            </ul>
+            <h3>📱 So nutzt du es</h3>
+            <ul>
+                <li>1. Bilder hinzufügen (mehrere gleichzeitig)</li>
+                <li>2. "✨ Automatisch verbessern" drücken</li>
+                <li>3. Warten – jedes Bild wird einzeln optimiert</li>
+                <li>4. "💾 Speichern" oder "📥 Downloaden"</li>
+            </ul>
+            <h3>💡 Was wird verbessert?</h3>
+            <ul>
+                <li>Unscharfe Bilder → scharf (Kanten & Ecken klar)</li>
+                <li>Verrauschte Bilder → sauber</li>
+                <li>Flache Bilder → besserer Kontrast</li>
+                <li>Blasse Bilder → kräftige, natürliche Farben</li>
+            </ul>
+            <h3>⚠️ Tipp</h3>
+            <ul>
+                <li>Alles läuft <strong>100% lokal</strong> – kein Upload</li>
+                <li>iPhone: Einstellungen → Kamera → "Am kompatibelsten" für beste Kompatibilität</li>
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="modal-overlay" id="modal">
+    <div class="modal">
+        <h3 id="modalTitle">Bild</h3>
+        <img id="modalImg" src="" alt="">
+        <br><button class="close-btn" onclick="closeModal()">Schließen</button>
+    </div>
+</div>
+
+<footer><p><span class="pro">SharpVision Pro</span> &copy; 2026 – Milo | 100% lokal, voll-automatisch</p></footer>
+
+<script>
+    var images = [];
+    var gallery = [];
+    var idCounter = 0;
+
+    var fileInput = document.getElementById('fileInput');
+    var imageGrid = document.getElementById('imageGrid');
+    var emptyState = document.getElementById('emptyState');
+    var statusEl = document.getElementById('status');
+    var errorMsg = document.getElementById('errorMsg');
+    var btnAutoEnhance = document.getElementById('btnAutoEnhance');
+    var btnSaveAll = document.getElementById('btnSaveAll');
+    var btnDownloadAll = document.getElementById('btnDownloadAll');
+    var btnClearAll = document.getElementById('btnClearAll');
+    var galleryGrid = document.getElementById('galleryGrid');
+    var galleryEmpty = document.getElementById('galleryEmpty');
+    var progressContainer = document.getElementById('progressContainer');
+    var progressFill = document.getElementById('progressFill');
+    var progressText = document.getElementById('progressText');
+
+    // TABS
+    document.querySelectorAll('.tab').forEach(function(tab) {
+        tab.addEventListener('click', function() {
+            document.querySelectorAll('.tab').forEach(function(t) { t.classList.remove('active'); });
+            document.querySelectorAll('.tab-content').forEach(function(t) { t.classList.remove('active'); });
+            this.classList.add('active');
+            document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+            if (this.dataset.tab === 'galerie') renderGallery();
+        });
+    });
+
+    // FILE INPUT
+    fileInput.addEventListener('change', function() {
+        if (!this.files || this.files.length === 0) return;
+        handleFiles(this.files);
+        this.value = '';
+    });
+
+    function handleFiles(files) {
+        hideError();
+        var count = 0, errors = 0, total = files.length;
+        showStatus('⏳ Lade ' + total + ' Bild(er)...');
+
+        for (var i = 0; i < files.length; i++) {
+            (function(file) {
+                if (!file.type.startsWith('image/') && !file.name.match(/\.(heic|heif)$/i)) {
+                    errors++; count++;
+                    if (count >= total) finishLoad();
+                    return;
+                }
+                var reader = new FileReader();
+                reader.onload = function(e) {
+                    var testImg = new Image();
+                    testImg.onload = function() {
+                        images.push({
+                            id: ++idCounter, name: file.name,
+                            originalDataUrl: e.target.result,
+                            processedDataUrl: null,
+                            originalSize: file.size, processedSize: 0,
+                            autoSettings: null
+                        });
+                        count++;
+                        if (count >= total) finishLoad();
+                    };
+                    testImg.onerror = function() { errors++; count++; if (count >= total) finishLoad(); };
+                    testImg.src = e.target.result;
+                };
+                reader.onerror = function() { errors++; count++; if (count >= total) finishLoad(); };
+                reader.readAsDataURL(file);
+            })(files[i]);
+        }
+
+        function finishLoad() {
+            renderGrid();
+            if (errors > 0 && images.length === 0) {
+                showError('⚠️ Bilder konnten nicht geladen werden.');
+            } else {
+                showStatus('✅ ' + (total - errors) + ' Bild(er) bereit – drücke "Automatisch verbessern"');
+            }
+        }
+    }
+
+    // ===== AUTOMATISCHE BILDANALYSE =====
+    function analyzeImage(dataUrl, callback) {
+        var img = new Image();
+        img.onload = function() {
+            var canvas = document.createElement('canvas');
+            var w = img.width, h = img.height;
+
+            // Für Analyse kleiner rechnen (schneller)
+            var scale = Math.min(1, 300 / Math.max(w, h));
+            var aw = Math.round(w * scale);
+            var ah = Math.round(h * scale);
+            canvas.width = aw;
+            canvas.height = ah;
+            var ctx = canvas.getContext('2d');
+            ctx.drawImage(img, 0, 0, aw, ah);
+            var data = ctx.getImageData(0, 0, aw, ah).data;
+
+            // 1. UNSCHÄRFE messen (Laplacian Varianz)
+            var lapSum = 0, lapSqSum = 0, lapCount = 0;
+            for (var y = 1; y < ah - 1; y++) {
+                for (var x = 1; x < aw - 1; x++) {
+                    var idx = (y * aw + x) * 4;
+                    var gray = data[idx] * 0.299 + data[idx+1] * 0.587 + data[idx+2] * 0.114;
+                    var grayL = data[(y * aw + x - 1) * 4] * 0.299 + data[(y * aw + x - 1) * 4 + 1] * 0.587 + data[(y * aw + x - 1) * 4 + 2] * 0.114;
+                    var grayR = data[(y * aw + x + 1) * 4] * 0.299 + data[(y * aw + x + 1) * 4 + 1] * 0.587 + data[(y * aw + x + 1) * 4 + 2] * 0.114;
+                    var grayU = data[((y-1) * aw + x) * 4] * 0.299 + data[((y-1) * aw + x) * 4 + 1] * 0.587 + data[((y-1) * aw + x) * 4 + 2] * 0.114;
+                    var grayD = data[((y+1) * aw + x) * 4] * 0.299 + data[((y+1) * aw + x) * 4 + 1] * 0.587 + data[((y+1) * aw + x) * 4 + 2] * 0.114;
+                    var lap = Math.abs(gray * 4 - grayL - grayR - grayU - grayD);
+                    lapSum += lap;
+                    lapSqSum += lap * lap;
+                    lapCount++;
+                }
+            }
+            var lapMean = lapSum / lapCount;
+            var lapVariance = (lapSqSum / lapCount) - (lapMean * lapMean);
+            // Niedrige Varianz = unscharf, Hohe = scharf
+            var blurScore = Math.max(0, Math.min(10, 10 - (lapVariance / 50)));
+
+            // 2. RAUSCHEN messen (High-Frequency in glatten Bereichen)
+            var noiseSum = 0, noiseCount = 0;
+            for (var y = 1; y < ah - 1; y += 2) {
+                for (var x = 1; x < aw - 1; x += 2) {
+                    var idx = (y * aw + x) * 4;
+                    var gray = data[idx] * 0.299 + data[idx+1] * 0.587 + data[idx+2] * 0.114;
+                    var grayR = data[(y * aw + x + 1) * 4] * 0.299 + data[(y * aw + x + 1) * 4 + 1] * 0.587 + data[(y * aw + x + 1) * 4 + 2] * 0.114;
+                    var diff = Math.abs(gray - grayR);
+                    if (diff < 30) { // Nur glatte Bereiche
+                        noiseSum += diff;
+                        noiseCount++;
+                    }
+                }
+            }
+            var noiseLevel = noiseCount > 0 ? noiseSum / noiseCount : 0;
+            var noiseScore = Math.max(0, Math.min(10, noiseLevel * 2));
+
+            // 3. KONTRAST messen (Standardabweichung der Helligkeit)
+            var brightSum = 0, brightSq = 0, pixCount = 0;
+            for (var i = 0; i < data.length; i += 16) {
+                var gray = data[i] * 0.299 + data[i+1] * 0.587 + data[i+2] * 0.114;
+                brightSum += gray;
+                brightSq += gray * gray;
+                pixCount++;
+            }
+            var brightMean = brightSum / pixCount;
+            var contrast = Math.sqrt((brightSq / pixCount) - (brightMean * brightMean));
+            // Niedriger Kontrast (< 40) = flach, Hoher (> 80) = gut
+            var contrastScore = Math.max(0, Math.min(10, 10 - (contrast / 10)));
+
+            // 4. FARBE messen (Sättigung)
+            var satSum = 0, satCount = 0;
+            for (var i = 0; i < data.length; i += 16) {
+                var r = data[i], g = data[i+1], b = data[i+2];
+                var max = Math.max(r, g, b), min = Math.min(r, g, b);
+                var sat = max === 0 ? 0 : (max - min) / max;
+                satSum += sat;
+                satCount++;
+            }
+            var avgSat = satSum / satCount;
+            // Niedrige Sättigung (< 0.15) = blass
+            var colorScore = Math.max(0, Math.min(10, 10 - (avgSat * 30)));
+
+            // ===== BESTE EINSTELLUNGEN BERECHNEN =====
+            var settings = {
+                sharpen: Math.round(Math.min(10, Math.max(1, blurScore * 1.2))),
+                denoise: Math.round(Math.min(8, Math.max(0, noiseScore * 1.5))),
+                contrast: contrastScore > 4 ? Math.round(contrastScore * 0.8) : 0,
+                color: Math.round(Math.min(8, Math.max(0, colorScore * 0.9))),
+                blurScore: blurScore.toFixed(1),
+                noiseScore: noiseScore.toFixed(1),
+                contrastScore: contrastScore.toFixed(1),
+                colorScore: colorScore.toFixed(1),
+                quality: 'gut'
+            };
+
+            // Qualitäts-Bewertung
+            var totalProblem = blurScore + noiseScore + contrastScore + colorScore;
+            if (totalProblem > 20) settings.quality = 'schlecht';
+            else if (totalProblem > 10) settings.quality = 'mittel';
+            else settings.quality = 'gut';
+
+            callback(settings);
+        };
+        img.onerror = function() {
+            callback({ sharpen: 5, denoise: 3, contrast: 3, color: 3, quality: 'mittel',
+                      blurScore: '5', noiseScore: '3', contrastScore: '3', colorScore: '3' });
+        };
+        img.src = dataUrl;
+    }
+
+    // ===== BILDVERBESSERUNG MIT AUTO-EINSTELLUNGEN =====
+    function gaussianBlur(data, w, h, radius) {
+        var output = new Float32Array(data.length);
+        var kernel = [], sum = 0;
+        for (var i = -radius; i <= radius; i++) {
+            var val = Math.exp(-(i * i) / (2 * radius * radius));
+            kernel.push(val); sum += val;
+        }
+        for (var i = 0; i < kernel.length; i++) kernel[i] /= sum;
+
+        var temp = new Float32Array(data.length);
+        for (var y = 0; y < h; y++) {
+            for (var x = 0; x < w; x++) {
+                var r = 0, g = 0, b = 0;
+                for (var k = -radius; k <= radius; k++) {
+                    var px = Math.min(w-1, Math.max(0, x+k));
+                    var idx = (y * w + px) * 4;
+                    var wt = kernel[k + radius];
+                    r += data[idx] * wt; g += data[idx+1] * wt; b += data[idx+2] * wt;
+                }
+                var idx = (y * w + x) * 4;
+                temp[idx] = r; temp[idx+1] = g; temp[idx+2] = b; temp[idx+3] = 255;
+            }
+        }
+        for (var y = 0; y < h; y++) {
+            for (var x = 0; x < w; x++) {
+                var r = 0, g = 0, b = 0;
+                for (var k = -radius; k <= radius; k++) {
+                    var py = Math.min(h-1, Math.max(0, y+k));
+                    var idx = (py * w + x) * 4;
+                    var wt = kernel[k + radius];
+                    r += temp[idx] * wt; g += temp[idx+1] * wt; b += temp[idx+2] * wt;
+                }
+                var idx = (y * w + x) * 4;
+                output[idx] = r; output[idx+1] = g; output[idx+2] = b; output[idx+3] = 255;
+            }
+        }
+        return output;
+    }
+
+    function denoise(src, w, h, strength) {
+        if (strength <= 0) return src;
+        var radius = Math.max(1, Math.round(strength / 3));
+        var blurred = gaussianBlur(src, w, h, radius);
+        var output = new Float32Array(src.length);
+        var mix = strength / 12;
+        for (var i = 0; i < src.length; i += 4) {
+            var diff = (Math.abs(src[i]-blurred[i]) + Math.abs(src[i+1]-blurred[i+1]) + Math.abs(src[i+2]-blurred[i+2])) / 3;
+            var factor = diff > 25 ? 0.05 : mix;
+            output[i]   = src[i]   * (1-factor) + blurred[i]   * factor;
+            output[i+1] = src[i+1] * (1-factor) + blurred[i+1] * factor;
+            output[i+2] = src[i+2] * (1-factor) + blurred[i+2] * factor;
+            output[i+3] = 255;
+        }
+        return output;
+    }
+
+    function unsharpMask(data, w, h, amount, radius) {
+        var blurred = gaussianBlur(data, w, h, radius);
+        var output = new Float32Array(data.length);
+        for (var i = 0; i < data.length; i += 4) {
+            var dR = data[i] - blurred[i];
+            var dG = data[i+1] - blurred[i+1];
+            var dB = data[i+2] - blurred[i+2];
+            var thresh = 2;
+            output[i]   = Math.min(255, Math.max(0, data[i]   + (Math.abs(dR) > thresh ? dR * amount : 0)));
+            output[i+1] = Math.min(255, Math.max(0, data[i+1] + (Math.abs(dG) > thresh ? dG * amount : 0)));
+            output[i+2] = Math.min(255, Math.max(0, data[i+2] + (Math.abs(dB) > thresh ? dB * amount : 0)));
+            output[i+3] = 255;
+        }
+        return output;
+    }
+
+    function adaptiveSharpen(data, w, h, strength) {
+        var output = new Float32Array(data.length);
+        var amount = strength * 0.12;
+        for (var y = 0; y < h; y++) {
+            for (var x = 0; x < w; x++) {
+                var idx = (y * w + x) * 4;
+                var lapR = 0, lapG = 0, lapB = 0;
+                var nb = [[-1,0],[1,0],[0,-1],[0,1]];
+                for (var n = 0; n < 4; n++) {
+                    var nx = Math.min(w-1, Math.max(0, x+nb[n][0]));
+                    var ny = Math.min(h-1, Math.max(0, y+nb[n][1]));
+                    var nIdx = (ny * w + nx) * 4;
+                    lapR += data[nIdx]; lapG += data[nIdx+1]; lapB += data[nIdx+2];
+                }
+                lapR = data[idx]*4 - lapR;
+                lapG = data[idx+1]*4 - lapG;
+                lapB = data[idx+2]*4 - lapB;
+                var edge = Math.sqrt(lapR*lapR + lapG*lapG + lapB*lapB) / 3;
+                var amt = edge > 8 ? amount : amount * 0.15;
+                output[idx]   = Math.min(255, Math.max(0, data[idx]   + lapR * amt));
+                output[idx+1] = Math.min(255, Math.max(0, data[idx+1] + lapG * amt));
+                output[idx+2] = Math.min(255, Math.max(0, data[idx+2] + lapB * amt));
+                output[idx+3] = 255;
+            }
+        }
+        return output;
+    }
+
+    function autoContrast(data, w, h, strength) {
+        if (strength <= 0) return data;
+        var histR = new Array(256).fill(0), histG = new Array(256).fill(0), histB = new Array(256).fill(0);
+        var total = w * h;
+        for (var i = 0; i < data.length; i += 4) {
+            histR[Math.round(Math.min(255, Math.max(0, data[i])))]++;
+            histG[Math.round(Math.min(255, Math.max(0, data[i+1])))]++;
+            histB[Math.round(Math.min(255, Math.max(0, data[i+2])))]++;
+        }
+        var clip = total * 0.01;
+        var minR=255,maxR=0,minG=255,maxG=0,minB=255,maxB=0;
+        var cum=0; for(var i=0;i<256;i++){cum+=histR[i];if(cum>=clip){minR=i;break;}}
+        cum=0; for(var i=255;i>=0;i--){cum+=histR[i];if(cum>=clip){maxR=i;break;}}
+        cum=0; for(var i=0;i<256;i++){cum+=histG[i];if(cum>=clip){minG=i;break;}}
+        cum=0; for(var i=255;i>=0;i--){cum+=histG[i];if(cum>=clip){maxG=i;break;}}
+        cum=0; for(var i=0;i<256;i++){cum+=histB[i];if(cum>=clip){minB=i;break;}}
+        cum=0; for(var i=255;i>=0;i--){cum+=histB[i];if(cum>=clip){maxB=i;break;}}
+
+        var output = new Float32Array(data.length);
+        var mix = strength / 10;
+        for (var i = 0; i < data.length; i += 4) {
+            var nr = (data[i]-minR) / (maxR-minR||1) * 255;
+            var ng = (data[i+1]-minG) / (maxG-minG||1) * 255;
+            var nb = (data[i+2]-minB) / (maxB-minB||1) * 255;
+            output[i]   = data[i]   * (1-mix) + Math.min(255,Math.max(0,nr)) * mix;
+            output[i+1] = data[i+1] * (1-mix) + Math.min(255,Math.max(0,ng)) * mix;
+            output[i+2] = data[i+2] * (1-mix) + Math.min(255,Math.max(0,nb)) * mix;
+            output[i+3] = 255;
+        }
+        return output;
+    }
+
+    function enhanceColor(data, w, h, strength) {
+        if (strength <= 0) return data;
+        var output = new Float32Array(data.length);
+        var sat = 1 + strength * 0.06;
+        for (var i = 0; i < data.length; i += 4) {
+            var r = data[i], g = data[i+1], b = data[i+2];
+            var gray = 0.299*r + 0.587*g + 0.114*b;
+            var max = Math.max(r,g,b), min = Math.min(r,g,b);
+            var curSat = max === 0 ? 0 : (max-min)/max;
+            var vibrance = 1 + (1-curSat) * strength * 0.04;
+            output[i]   = Math.min(255, Math.max(0, gray + (r-gray) * sat * vibrance));
+            output[i+1] = Math.min(255, Math.max(0, gray + (g-gray) * sat * vibrance));
+            output[i+2] = Math.min(255, Math.max(0, gray + (b-gray) * sat * vibrance));
+            output[i+3] = 255;
+        }
+        return output;
+    }
+
+    // ===== HAUPT-VERBESSERUNG MIT AUTO-SETTINGS =====
+    function enhanceWithSettings(dataUrl, settings, callback) {
+        var img = new Image();
+        img.onload = function() {
+            try {
+                var canvas = document.createElement('canvas');
+                var w = img.width, h = img.height;
+                canvas.width = w; canvas.height = h;
+                var ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                var imgData = ctx.getImageData(0, 0, w, h);
+                var pixels = new Float32Array(imgData.data.length);
+                for (var i = 0; i < imgData.data.length; i++) pixels[i] = imgData.data[i];
+
+                // 1. Rauschentfernung
+                if (settings.denoise > 0) pixels = denoise(pixels, w, h, settings.denoise);
+
+                // 2. Unsharp Mask
+                var amount = settings.sharpen * 0.1;
+                var radius = Math.max(1, Math.round(settings.sharpen / 4));
+                pixels = unsharpMask(pixels, w, h, amount, radius);
+
+                // 3. Adaptive Schärfung
+                pixels = adaptiveSharpen(pixels, w, h, settings.sharpen);
+
+                // 4. Kontrast
+                if (settings.contrast > 0) pixels = autoContrast(pixels, w, h, settings.contrast);
+
+                // 5. Farbe
+                if (settings.color > 0) pixels = enhanceColor(pixels, w, h, settings.color);
+
+                var finalData = ctx.createImageData(w, h);
+                for (var i = 0; i < pixels.length; i++) {
+                    finalData.data[i] = Math.min(255, Math.max(0, Math.round(pixels[i])));
+                }
+                ctx.putImageData(finalData, 0, 0);
+                var resultUrl = canvas.toDataURL('image/png');
+                var resultSize = Math.round((resultUrl.length - 22) * 3 / 4);
+                callback(resultUrl, resultSize);
+            } catch(err) {
+                showError('Fehler: ' + err.message);
+                callback(dataUrl, 0);
+            }
+        };
+        img.onerror = function() { callback(dataUrl, 0); };
+        img.src = dataUrl;
+    }
+
+    // ===== AUTO-VERBESSERUNG (Analyse + Verbesserung) =====
+    btnAutoEnhance.addEventListener('click', function() {
+        var total = images.length;
+        var done = 0;
+        progressContainer.style.display = 'block';
+        progressFill.style.width = '0%';
+        progressText.textContent = 'Analysiere Bild 1/' + total + '...';
+        showStatus('🤖 Auto-Verbesserung läuft...');
+
+        function processNext(index) {
+            if (index >= total) {
+                progressContainer.style.display = 'none';
+                renderGrid();
+                showStatus('✅ Alle ' + total + ' Bilder automatisch verbessert!');
+                return;
+            }
+
+            var item = images[index];
+            progressText.textContent = '🔍 Analysiere: ' + item.name + ' (' + (index+1) + '/' + total + ')';
+            progressFill.style.width = Math.round((index / total) * 50) + '%';
+
+            // Schritt 1: Analysieren
+            analyzeImage(item.originalDataUrl, function(settings) {
+                item.autoSettings = settings;
+                progressText.textContent = '✨ Verbessere: ' + item.name + ' (Schärfe:' + settings.sharpen + ' Rausch:' + settings.denoise + ' Farbe:' + settings.color + ')';
+                progressFill.style.width = Math.round(((index + 0.5) / total) * 100) + '%';
+
+                // Schritt 2: Verbessern mit optimalen Einstellungen
+                enhanceWithSettings(item.originalDataUrl, settings, function(url, size) {
+                    item.processedDataUrl = url;
+                    item.processedSize = size;
+                    done++;
+                    progressFill.style.width = Math.round((done / total) * 100) + '%';
+                    processNext(index + 1);
+                });
+            });
+        }
+
+        processNext(0);
+    });
+
+    // ===== GRID =====
+    function renderGrid() {
+        imageGrid.innerHTML = '';
+        emptyState.style.display = images.length === 0 ? 'block' : 'none';
+        var has = images.length > 0;
+        btnAutoEnhance.disabled = !has;
+        btnSaveAll.disabled = !has;
+        btnDownloadAll.disabled = !has;
+        btnClearAll.disabled = !has;
+
+        images.forEach(function(item) {
+            var card = document.createElement('div');
+            card.className = 'image-card';
+            var url = item.processedDataUrl || item.originalDataUrl;
+            var sizeStr = item.processedDataUrl
+                ? formatBytes(item.processedSize) + ' (vorher: ' + formatBytes(item.originalSize) + ')'
+                : formatBytes(item.originalSize);
+
+            var settingsHtml = '';
+            if (item.autoSettings) {
+                var s = item.autoSettings;
+                var qClass = s.quality === 'gut' ? 'q-good' : (s.quality === 'mittel' ? 'q-medium' : 'q-bad');
+                settingsHtml =
+                    '<div class="auto-settings">' +
+                        '🤖 Auto: Schärfe ' + s.sharpen + ' | Rausch ' + s.denoise +
+                        ' | Kontrast ' + s.contrast + ' | Farbe ' + s.color +
+                    '</div>' +
+                    '<span class="quality-badge ' + qClass + '">' +
+                        (s.quality === 'gut' ? '✅ War gut' : s.quality === 'mittel' ? '🔧 Verbessert' : '🔨 Stark verbessert') +
+                    '</span>';
+            }
+
+            card.innerHTML =
+                '<img src="' + url + '" alt="' + item.name + '">' +
+                '<div class="card-info">' +
+                    '<div class="name">🖼️ ' + item.name + '</div>' +
+                    '<div class="size">💾 ' + sizeStr + '</div>' +
+                    settingsHtml +
+                '</div>' +
+                '<div class="card-actions">' +
+                    '<button class="card-btn-save" data-id="' + item.id + '">💾 Speichern</button>' +
+                    '<button class="card-btn-del" data-id="' + item.id + '">🗑️</button>' +
+                '</div>';
+
+            card.querySelector('.card-btn-save').addEventListener('click', function() {
+                saveSingle(parseInt(this.dataset.id));
+            });
+            card.querySelector('.card-btn-del').addEventListener('click', function() {
+                removeSingle(parseInt(this.dataset.id));
+            });
+            card.querySelector('img').addEventListener('click', function() {
+                openModal(item.name, url);
+            });
+
+            imageGrid.appendChild(card);
+        });
+    }
+
+    function saveSingle(id) {
+        var item = images.find(function(i) { return i.id === id; });
+        if (!item) return;
+        var url = item.processedDataUrl || item.originalDataUrl;
+        var size = item.processedDataUrl ? item.processedSize : item.originalSize;
+        saveToGallery(item.name, url, size, item.originalSize);
+        showStatus('💾 Gespeichert: ' + item.name);
+    }
+
+    function removeSingle(id) {
+        images = images.filter(function(i) { return i.id !== id; });
+        renderGrid();
+    }
+
+    btnSaveAll.addEventListener('click', function() {
+        images.forEach(function(item) {
+            var url = item.processedDataUrl || item.originalDataUrl;
+            var size = item.processedDataUrl ? item.processedSize : item.originalSize;
+            saveToGallery(item.name, url, size, item.originalSize);
+        });
+        showStatus('💾 Alle ' + images.length + ' Bilder gespeichert!');
+    });
+
+    btnDownloadAll.addEventListener('click', function() {
+        downloadAsZip(images.map(function(i) {
+            return { name: i.name.replace(/\.[^.]+$/, '') + '_enhanced.png', url: i.processedDataUrl || i.originalDataUrl };
+        }));
+    });
+
+    btnClearAll.addEventListener('click', function() { images = []; renderGrid(); });
+
+    // ===== GALERIE =====
+    function saveToGallery(name, dataUrl, size, originalSize) {
+        gallery.push({
+            id: Date.now() + Math.random(),
+            name: name.replace(/\.[^.]+$/, '') + '_enhanced.png',
+            dataUrl: dataUrl, size: size, originalSize: originalSize,
+            date: new Date().toLocaleString('de-DE')
+        });
+        saveGalleryToDB();
+    }
+
+    function renderGallery() {
+        galleryGrid.innerHTML = '';
+        galleryEmpty.style.display = gallery.length === 0 ? 'block' : 'none';
+        var totalSize = 0, totalOriginal = 0;
+
+        gallery.forEach(function(item) {
+            totalSize += item.size; totalOriginal += item.originalSize;
+            var el = document.createElement('div');
+            el.className = 'gallery-item';
+            el.innerHTML =
+                '<img src="' + item.dataUrl + '" alt="">' +
+                '<div class="g-info">' +
+                    '<div class="g-name">🖼️ ' + item.name + '</div>' +
+                    '<div class="g-size">💾 ' + formatBytes(item.size) + '</div>' +
+                    '<div class="g-date">📅 ' + item.date + '</div>' +
+                '</div>' +
+                '<div class="g-actions">' +
+                    '<button class="g-btn-dl">📥</button>' +
+                    '<button class="g-btn-del">🗑️</button>' +
+                '</div>';
+            el.querySelector('.g-btn-dl').addEventListener('click', function() { downloadSingle(item.name, item.dataUrl); });
+            el.querySelector('.g-btn-del').addEventListener('click', function() { deleteFromGallery(item.id); });
+            el.querySelector('img').addEventListener('click', function() { openModal(item.name, item.dataUrl); });
+            galleryGrid.appendChild(el);
+        });
+
+        document.getElementById('statCount').textContent = gallery.length;
+        document.getElementById('statSize').textContent = formatBytes(totalSize);
+        document.getElementById('statSaved').textContent = formatBytes(Math.max(0, totalOriginal - totalSize));
+    }
+
+    function deleteFromGallery(id) {
+        gallery = gallery.filter(function(g) { return g.id !== id; });
+        saveGalleryToDB(); renderGallery();
+    }
+
+    document.getElementById('btnClearGallery').addEventListener('click', function() {
+        if (confirm('Alle Fotos löschen?')) { gallery = []; saveGalleryToDB(); renderGallery(); }
+    });
+
+    document.getElementById('btnDownloadGallery').addEventListener('click', function() {
+        downloadAsZip(gallery.map(function(g) { return { name: g.name, url: g.dataUrl }; }));
+    });
+
+    // ===== DOWNLOAD =====
+    function downloadSingle(name, url) {
+        var a = document.createElement('a');
+        a.download = name; a.href = url;
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    }
+
+    function downloadAsZip(items) {
+        if (items.length === 0) return;
+        showStatus('📦 ZIP wird erstellt...');
+        var zip = new JSZip();
+        items.forEach(function(item) {
+            var base64 = item.url.split(',')[1];
+            if (base64) zip.file(item.name, base64, { base64: true });
+        });
+        zip.generateAsync({ type: 'blob' }).then(function(blob) {
+            var a = document.createElement('a');
+            a.download = 'SharpVision_Pro_Export.zip';
+            a.href = URL.createObjectURL(blob);
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+            showStatus('✅ ZIP fertig (' + items.length + ' Bilder)');
+        });
+    }
+
+    // ===== IndexedDB =====
+    var db;
+    function openDB() {
+        return new Promise(function(resolve) {
+            try {
+                var req = indexedDB.open('SharpVisionPro', 1);
+                req.onupgradeneeded = function(e) {
+                    var d = e.target.result;
+                    if (!d.objectStoreNames.contains('photos')) d.createObjectStore('photos', { keyPath: 'id' });
+                };
+                req.onsuccess = function(e) { db = e.target.result; resolve(); };
+                req.onerror = function() { resolve(); };
+            } catch(e) { resolve(); }
+        });
+    }
+
+    function saveGalleryToDB() {
+        if (!db) return;
+        try {
+            var tx = db.transaction('photos', 'readwrite');
+            var store = tx.objectStore('photos');
+            store.clear();
+            gallery.forEach(function(item) { store.put(item); });
+        } catch(e) {}
+    }
+
+    function loadGalleryFromDB() {
+        return new Promise(function(resolve) {
+            if (!db) { resolve([]); return; }
+            try {
+                var req = db.transaction('photos', 'readonly').objectStore('photos').getAll();
+                req.onsuccess = function() { resolve(req.result || []); };
+                req.onerror = function() { resolve([]); };
+            } catch(e) { resolve([]); }
+        });
+    }
+
+    // ===== MODAL =====
+    function openModal(name, url) {
+        document.getElementById('modalTitle').textContent = name;
+        document.getElementById('modalImg').src = url;
+        document.getElementById('modal').classList.add('active');
+    }
+
+    function closeModal() { document.getElementById('modal').classList.remove('active'); }
+    document.getElementById('modal').addEventListener('click', function(e) { if (e.target === this) closeModal(); });
+
+    // ===== HILFE =====
+    function formatBytes(bytes) {
+        if (!bytes || bytes === 0) return '0 B';
+        var k = 1024, sizes = ['B', 'KB', 'MB', 'GB'];
+        var i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function showStatus(msg) { statusEl.textContent = msg; hideError(); }
+    function showError(msg) { errorMsg.textContent = msg; errorMsg.style.display = 'block'; }
+    function hideError() { errorMsg.style.display = 'none'; }
+
+    // INIT
+    (async function() {
+        await openDB();
+        gallery = await loadGalleryFromDB();
+        renderGallery();
+    })();
+</script>
+
+</body>
+</html>

@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bildschärfer – Bilder verbessern</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #1a1a2e;
+            color: #eee;
+            min-height: 100vh;
+        }
+
+        header {
+            background: #16213e;
+            padding: 20px;
+            text-align: center;
+            border-bottom: 3px solid #0f3460;
+        }
+
+        header h1 {
+            font-size: 2rem;
+            color: #e94560;
+        }
+
+        header p {
+            margin-top: 8px;
+            color: #aaa;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 30px 20px;
+        }
+
+        .upload-zone {
+            border: 3px dashed #0f3460;
+            border-radius: 12px;
+            padding: 50px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #16213e;
+            margin-bottom: 30px;
+        }
+
+        .upload-zone:hover {
+            border-color: #e94560;
+            background: #1a1a3e;
+        }
+
+        .upload-zone.dragover {
+            border-color: #e94560;
+            background: #2a1a3e;
+        }
+
+        .upload-zone h2 {
+            color: #e94560;
+            margin-bottom: 10px;
+        }
+
+        .upload-zone p {
+            color: #888;
+        }
+
+        .controls {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 25px;
+            margin-bottom: 30px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .control-group label {
+            font-size: 0.85rem;
+            color: #aaa;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        input[type="range"] {
+            width: 200px;
+            accent-color: #e94560;
+        }
+
+        .btn {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: bold;
+            transition: all 0.3s;
+        }
+
+        .btn-primary {
+            background: #e94560;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #ff6b6b;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #0f3460;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #1a5276;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #27ae60;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #2ecc71;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .canvas-area {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        @media (max-width: 768px) {
+            .canvas-area {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .canvas-box {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 15px;
+            text-align: center;
+        }
+
+        .canvas-box h3 {
+            margin-bottom: 12px;
+            color: #e94560;
+            font-size: 1rem;
+        }
+
+        canvas {
+            max-width: 100%;
+            border-radius: 8px;
+            background: #0a0a1a;
+        }
+
+        .image-list {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 30px;
+        }
+
+        .image-list h3 {
+            color: #e94560;
+            margin-bottom: 15px;
+        }
+
+        .image-list ul {
+            list-style: none;
+        }
+
+        .image-list li {
+            padding: 10px 15px;
+            background: #1a1a2e;
+            margin-bottom: 8px;
+            border-radius: 6px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .image-list li span {
+            color: #ccc;
+        }
+
+        .image-list li button {
+            background: #e94560;
+            border: none;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+
+        .status {
+            text-align: center;
+            padding: 10px;
+            color: #27ae60;
+            font-weight: bold;
+            min-height: 30px;
+        }
+
+        .help-section {
+            background: #16213e;
+            border-radius: 12px;
+            padding: 25px;
+            margin-top: 30px;
+        }
+
+        .help-section h2 {
+            color: #e94560;
+            margin-bottom: 15px;
+        }
+
+        .help-section h3 {
+            color: #ff6b6b;
+            margin: 15px 0 8px;
+        }
+
+        .help-section p, .help-section li {
+            color: #bbb;
+            line-height: 1.7;
+        }
+
+        .help-section ul {
+            padding-left: 20px;
+        }
+
+        .help-section code {
+            background: #0a0a1a;
+            padding: 2px 8px;
+            border-radius: 4px;
+            color: #e94560;
+        }
+
+        footer {
+            text-align: center;
+            padding: 20px;
+            color: #555;
+            border-top: 1px solid #0f3460;
+            margin-top: 40px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>🖼️ Bildschärfer</h1>
+    <p>Unscharfe Bilder schärfen – Kanten & Ecken wieder erkennbar machen</p>
+</header>
+
+<div class="container">
+
+    <!-- Upload-Bereich -->
+    <div class="upload-zone" id="uploadZone">
+        <h2>📁 Bild hinzufügen</h2>
+        <p>Klicken oder Bild hierher ziehen (JPG, PNG, BMP, WebP)</p>
+        <input type="file" id="fileInput" accept="image/*" multiple hidden>
+    </div>
+
+    <!-- Bildliste -->
+    <div class="image-list" id="imageListSection" style="display:none;">
+        <h3>📋 Hinzugefügte Bilder</h3>
+        <ul id="imageList"></ul>
+    </div>
+
+    <!-- Steuerung -->
+    <div class="controls">
+        <div class="control-group">
+            <label>Schärfungsstärke: <span id="levelValue">5</span></label>
+            <input type="range" id="sharpLevel" min="1" max="10" value="5">
+        </div>
+        <div class="control-group">
+            <label>Kantenerkennung: <span id="edgeValue">3</span></label>
+            <input type="range" id="edgeLevel" min="0" max="10" value="3">
+        </div>
+        <button class="btn btn-primary" id="btnSharpen" disabled>🔍 Schärfen</button>
+        <button class="btn btn-secondary" id="btnEdges" disabled>📐 Kanten erkennen</button>
+        <button class="btn btn-secondary" id="btnReset" disabled>↩️ Zurücksetzen</button>
+        <button class="btn btn-success" id="btnDownload" disabled>💾 Speichern</button>
+    </div>
+
+    <div class="status" id="status"></div>
+
+    <!-- Canvas-Bereich -->
+    <div class="canvas-area">
+        <div class="canvas-box">
+            <h3>📷 Original</h3>
+            <canvas id="canvasOriginal" width="500" height="400"></canvas>
+        </div>
+        <div class="canvas-box">
+            <h3>✨ Ergebnis</h3>
+            <canvas id="canvasResult" width="500" height="400"></canvas>
+        </div>
+    </div>
+
+    <!-- Hilfe-Bereich -->
+    <div class="help-section">
+        <h2>❓ Hilfe & Anleitung</h2>
+
+        <h3>1. Bild hinzufügen</h3>
+        <p>Klicke auf den Upload-Bereich oder ziehe ein Bild per Drag & Drop hinein.
+           Du kannst auch mehrere Bilder gleichzeitig hinzufügen.</p>
+
+        <h3>2. Bild schärfen</h3>
+        <p>Wähle die <strong>Schärfungsstärke</strong> (1–10) und klicke auf
+           <code>🔍 Schärfen</code>. Unscharfe Bilder werden nachgeschärft,
+           sodass Ecken und Kanten wieder klar erkennbar sind.</p>
+
+        <h3>3. Kanten erkennen</h3>
+        <p>Mit <code>📐 Kanten erkennen</code> werden alle Kanten und Ecken im Bild
+           hervorgehoben. Die Stärke regelst du mit dem Kantenerkennungs-Regler.</p>
+
+        <h3>4. Ergebnis speichern</h3>
+        <p>Klicke auf <code>💾 Speichern</code>, um das verbesserte Bild als PNG
+           herunterzuladen.</p>
+
+        <h3>Tipps</h3>
+        <ul>
+            <li>Stärke <strong>1–3</strong>: Leichte Verbesserung für minimal unscharfe Bilder</li>
+            <li>Stärke <strong>4–6</strong>: Gute Allround-Einstellung</li>
+            <li>Stärke <strong>7–10</strong>: Starke Schärfung für sehr unscharfe Bilder</li>
+            <li>Zu hohe Werte können Rauschen verstärken – ggf. reduzieren</li>
+        </ul>
+    </div>
+
+</div>
+
+<footer>
+    <p>Bildschärfer &copy; 2026 – Milo | Alle Bilder werden lokal verarbeitet, nichts wird hochgeladen.</p>
+</footer>
+
+<script>
+    // ===== ZUSTAND =====
+    let images = [];
+    let currentImage = null;
+    let originalImageData = null;
+
+    // ===== ELEMENTE =====
+    const uploadZone = document.getElementById('uploadZone');
+    const fileInput = document.getElementById('fileInput');
+    const imageListSection = document.getElementById('imageListSection');
+    const imageList = document.getElementById('imageList');
+    const sharpLevel = document.getElementById('sharpLevel');
+    const edgeLevel = document.getElementById('edgeLevel');
+    const levelValue = document.getElementById('levelValue');
+    const edgeValue = document.getElementById('edgeValue');
+    const btnSharpen = document.getElementById('btnSharpen');
+    const btnEdges = document.getElementById('btnEdges');
+    const btnReset = document.getElementById('btnReset');
+    const btnDownload = document.getElementById('btnDownload');
+    const status = document.getElementById('status');
+    const canvasOriginal = document.getElementById('canvasOriginal');
+    const canvasResult = document.getElementById('canvasResult');
+    const ctxOriginal = canvasOriginal.getContext('2d');
+    const ctxResult = canvasResult.getContext('2d');
+
+    // ===== UPLOAD =====
+    uploadZone.addEventListener('click', () => fileInput.click());
+
+    uploadZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        uploadZone.classList.add('dragover');
+    });
+
+    uploadZone.addEventListener('dragleave', () => {
+        uploadZone.classList.remove('dragover');
+    });
+
+    uploadZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        uploadZone.classList.remove('dragover');
+        handleFiles(e.dataTransfer.files);
+    });
+
+    fileInput.addEventListener('change', (e) => {
+        handleFiles(e.target.files);
+    });
+
+    function handleFiles(files) {
+        for (let file of files) {
+            if (!file.type.startsWith('image/')) continue;
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                const img = new Image();
+                img.onload = () => {
+                    images.push({ name: file.name, img: img });
+                    updateImageList();
+                    selectImage(images.length - 1);
+                    showStatus('✅ Bild hinzugefügt: ' + file.name);
+                };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+    }
+
+    function updateImageList() {
+        if (images.length === 0) {
+            imageListSection.style.display = 'none';
+            return;
+        }
+        imageListSection.style.display = 'block';
+        imageList.innerHTML = '';
+        images.forEach((item, i) => {
+            const li = document.createElement('li');
+            li.innerHTML = `
+                <span>🖼️ ${item.name}</span>
+                <div>
+                    <button onclick="selectImage(${i})">Auswählen</button>
+                    <button onclick="removeImage(${i})">✕</button>
+                </div>
+            `;
+            imageList.appendChild(li);
+        });
+    }
+
+    function removeImage(index) {
+        images.splice(index, 1);
+        updateImageList();
+        if (images.length === 0) {
+            currentImage = null;
+            ctxOriginal.clearRect(0, 0, canvasOriginal.width, canvasOriginal.height);
+            ctxResult.clearRect(0, 0, canvasResult.width, canvasResult.height);
+            disableButtons();
+        } else {
+            selectImage(0);
+        }
+    }
+
+    function selectImage(index) {
+        currentImage = images[index].img;
+        drawOriginal();
+        ctxResult.clearRect(0, 0, canvasResult.width, canvasResult.height);
+        enableButtons();
+        showStatus('Bild ausgewählt: ' + images[index].name);
+    }
+
+    function drawOriginal() {
+        const w = canvasOriginal.width;
+        const h = canvasOriginal.height;
+        ctxOriginal.clearRect(0, 0, w, h);
+        const scale = Math.min(w / currentImage.width, h / currentImage.height);
+        const dw = currentImage.width * scale;
+        const dh = currentImage.height * scale;
+        const dx = (w - dw) / 2;
+        const dy = (h - dh) / 2;
+        ctxOriginal.drawImage(currentImage, dx, dy, dw, dh);
+        originalImageData = ctxOriginal.getImageData(0, 0, w, h);
+    }
+
+    // ===== SCHÄRFUNG (Faltung / Convolution) =====
+    function sharpen(level) {
+        if (!originalImageData) return;
+        const src = originalImageData;
+        const w = src.width;
+        const h = src.height;
+        const output = ctxResult.createImageData(w, h);
+        const s = src.data;
+        const d = output.data;
+
+        // Schärfungs-Kernel basierend auf Level
+        const center = 1 + level * 0.8;
+        const side = -(level * 0.2);
+        const kernel = [
+            0, side, 0,
+            side, center, side,
+            0, side, 0
+        ];
+        const kernelSum = kernel.reduce((a, b) => a + b, 0);
+
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                let r = 0, g = 0, b = 0;
+                for (let ky = -1; ky <= 1; ky++) {
+                    for (let kx = -1; kx <= 1; kx++) {
+                        const px = Math.min(w - 1, Math.max(0, x + kx));
+                        const py = Math.min(h - 1, Math.max(0, y + ky));
+                        const idx = (py * w + px) * 4;
+                        const ki = (ky + 1) * 3 + (kx + 1);
+                        r += s[idx] * kernel[ki];
+                        g += s[idx + 1] * kernel[ki];
+                        b += s[idx + 2] * kernel[ki];
+                    }
+                }
+                const idx = (y * w + x) * 4;
+                d[idx] = Math.min(255, Math.max(0, r / kernelSum));
+                d[idx + 1] = Math.min(255, Math.max(0, g / kernelSum));
+                d[idx + 2] = Math.min(255, Math.max(0, b / kernelSum));
+                d[idx + 3] = 255;
+            }
+        }
+        ctxResult.putImageData(output, 0, 0);
+    }
+
+    // ===== KANTENERKENNUNG (Sobel-Operator) =====
+    function detectEdges(level) {
+        if (!originalImageData) return;
+        const src = originalImageData;
+        const w = src.width;
+        const h = src.height;
+        const output = ctxResult.createImageData(w, h);
+        const s = src.data;
+        const d = output.data;
+
+        const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
+        const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
+        const factor = level / 3;
+
+        for (let y = 0; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                let gx = 0, gy = 0;
+                for (let ky = -1; ky <= 1; ky++) {
+                    for (let kx = -1; kx <= 1; kx++) {
+                        const px = Math.min(w - 1, Math.max(0, x + kx));
+                        const py = Math.min(h - 1, Math.max(0, y + ky));
+                        const idx = (py * w + px) * 4;
+                        const gray = s[idx] * 0.299 + s[idx + 1] * 0.587 + s[idx + 2] * 0.114;
+                        const ki = (ky + 1) * 3 + (kx + 1);
+                        gx += gray * sobelX[ki];
+                        gy += gray * sobelY[ki];
+                    }
+                }
+                let magnitude = Math.sqrt(gx * gx + gy * gy) * factor;
+                magnitude = Math.min(255, magnitude);
+                const idx = (y * w + x) * 4;
+                d[idx] = magnitude;
+                d[idx + 1] = magnitude;
+                d[idx + 2] = magnitude;
+                d[idx + 3] = 255;
+            }
+        }
+        ctxResult.putImageData(output, 0, 0);
+    }
+
+    // ===== BUTTONS =====
+    btnSharpen.addEventListener('click', () => {
+        const level = parseInt(sharpLevel.value);
+        sharpen(level);
+        showStatus('🔍 Bild geschärft (Stärke: ' + level + ')');
+    });
+
+    btnEdges.addEventListener('click', () => {
+        const level = parseInt(edgeLevel.value);
+        detectEdges(level);
+        showStatus('📐 Kanten erkannt (Stärke: ' + level + ')');
+    });
+
+    btnReset.addEventListener('click', () => {
+        if (originalImageData) {
+            ctxResult.putImageData(originalImageData, 0, 0);
+            showStatus('↩️ Zurückgesetzt');
+        }
+    });
+
+    btnDownload.addEventListener('click', () => {
+        const link = document.createElement('a');
+        link.download = 'geschaerftes_bild.png';
+        link.href = canvasResult.toDataURL('image/png');
+        link.click();
+        showStatus('💾 Bild gespeichert!');
+    });
+
+    // ===== REGELER =====
+    sharpLevel.addEventListener('input', () => {
+        levelValue.textContent = sharpLevel.value;
+    });
+
+    edgeLevel.addEventListener('input', () => {
+        edgeValue.textContent = edgeLevel.value;
+    });
+
+    // ===== HILFSFUNKTIONEN =====
+    function enableButtons() {
+        btnSharpen.disabled = false;
+        btnEdges.disabled = false;
+        btnReset.disabled = false;
+        btnDownload.disabled = false;
+    }
+
+    function disableButtons() {
+        btnSharpen.disabled = true;
+        btnEdges.disabled = true;
+        btnReset.disabled = true;
+        btnDownload.disabled = true;
+    }
+
+    function showStatus(msg) {
+        status.textContent = msg;
+        setTimeout(() => { status.textContent = ''; }, 4000);
+    }
+</script>
+
+</body>
+</html>

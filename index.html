@@ -1,0 +1,1032 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <title>SharpVision Pro – Foto App</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+            color: #eee;
+            min-height: 100vh;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        header {
+            background: rgba(0,0,0,0.5);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            padding: 20px;
+            text-align: center;
+            border-bottom: 2px solid rgba(255,215,0,0.3);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        header h1 {
+            font-size: 1.6rem;
+            background: linear-gradient(90deg, #ffd700, #ffaa00);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            display: inline;
+        }
+
+        .badge {
+            background: linear-gradient(90deg, #ffd700, #ff8c00);
+            color: #000;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-size: 0.6rem;
+            font-weight: bold;
+            vertical-align: middle;
+            margin-left: 6px;
+        }
+
+        header p { color: #888; font-size: 0.8rem; margin-top: 5px; }
+
+        .tabs {
+            display: flex;
+            justify-content: center;
+            gap: 5px;
+            padding: 15px 15px 0;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .tab {
+            padding: 12px 20px;
+            background: rgba(255,255,255,0.05);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-bottom: none;
+            border-radius: 10px 10px 0 0;
+            cursor: pointer;
+            color: #888;
+            font-weight: bold;
+            font-size: 0.85rem;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .tab.active {
+            background: rgba(255,215,0,0.1);
+            color: #ffd700;
+            border-color: rgba(255,215,0,0.3);
+        }
+
+        .container { max-width: 1200px; margin: 0 auto; padding: 0 15px 40px; }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
+        /* ===== iOS-KOMPATIBLER UPLOAD ===== */
+        .upload-zone {
+            border: 2px dashed rgba(255,215,0,0.4);
+            border-radius: 16px;
+            padding: 40px 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(255,255,255,0.02);
+            margin: 20px 0;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .upload-zone:hover, .upload-zone:active {
+            border-color: #ffd700;
+            background: rgba(255,215,0,0.05);
+        }
+
+        .upload-zone h2 { color: #ffd700; margin-bottom: 8px; font-size: 1.2rem; }
+        .upload-zone p { color: #777; font-size: 0.85rem; }
+
+        /* WICHTIG für iOS: Input NICHT hidden, sondern unsichtbar über die Zone legen */
+        .upload-zone input[type="file"] {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            opacity: 0;
+            cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            z-index: 10;
+        }
+
+        .ios-hint {
+            margin-top: 12px;
+            font-size: 0.75rem;
+            color: #ffd700;
+            background: rgba(255,215,0,0.1);
+            padding: 8px 15px;
+            border-radius: 8px;
+            display: inline-block;
+        }
+
+        /* ===== STEUERUNG ===== */
+        .controls {
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            padding: 15px;
+            margin: 15px 0;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .control-group { display: flex; flex-direction: column; gap: 5px; }
+        .control-group label { font-size: 0.7rem; color: #999; text-transform: uppercase; }
+        input[type="range"] { width: 130px; accent-color: #ffd700; }
+
+        .btn {
+            padding: 12px 18px; border: none; border-radius: 8px;
+            cursor: pointer; font-size: 0.8rem; font-weight: bold;
+            transition: all 0.3s;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+
+        .btn-gold { background: linear-gradient(90deg, #ffd700, #ff8c00); color: #000; }
+        .btn-gold:active { transform: scale(0.95); }
+
+        .btn-dark { background: rgba(255,255,255,0.1); color: #fff; border: 1px solid rgba(255,255,255,0.2); }
+        .btn-dark:active { background: rgba(255,255,255,0.2); }
+
+        .btn-green { background: linear-gradient(90deg, #00b894, #00cec9); color: #000; }
+        .btn-green:active { transform: scale(0.95); }
+
+        .btn-red { background: linear-gradient(90deg, #e94560, #c0392b); color: #fff; }
+
+        .btn:disabled { opacity: 0.3; pointer-events: none; }
+
+        /* ===== BILD-GRID ===== */
+        .image-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+            gap: 12px;
+            margin: 15px 0;
+        }
+
+        .image-card {
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .image-card img {
+            width: 100%;
+            height: 130px;
+            object-fit: cover;
+            display: block;
+        }
+
+        .image-card .card-info { padding: 8px; }
+        .image-card .card-info .name {
+            font-size: 0.7rem; color: #ccc;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+        }
+        .image-card .card-info .size { font-size: 0.65rem; color: #ffd700; margin-top: 2px; }
+
+        .image-card .card-actions {
+            padding: 6px 8px;
+            display: flex; gap: 4px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .image-card .card-actions button {
+            flex: 1; padding: 8px 4px; border: none; border-radius: 5px;
+            cursor: pointer; font-size: 0.65rem; font-weight: bold;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .card-btn-sharp { background: rgba(255,215,0,0.2); color: #ffd700; }
+        .card-btn-save { background: rgba(0,184,148,0.2); color: #00b894; }
+        .card-btn-del { background: rgba(233,69,96,0.2); color: #e94560; }
+
+        .status {
+            text-align: center; padding: 10px;
+            color: #00b894; font-weight: bold; min-height: 30px;
+            font-size: 0.85rem;
+        }
+
+        .error-msg {
+            text-align: center; padding: 10px;
+            color: #e94560; font-weight: bold;
+            font-size: 0.85rem;
+            background: rgba(233,69,96,0.1);
+            border-radius: 8px;
+            margin: 10px 0;
+            display: none;
+        }
+
+        /* ===== GALERIE ===== */
+        .storage-bar {
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            padding: 20px;
+            margin: 20px 0;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .storage-bar h3 { color: #ffd700; margin-bottom: 12px; font-size: 0.9rem; }
+
+        .storage-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+        }
+
+        .stat-box { text-align: center; }
+        .stat-box .num { font-size: 1.3rem; font-weight: bold; color: #ffd700; }
+        .stat-box .lbl { font-size: 0.6rem; color: #888; text-transform: uppercase; margin-top: 3px; }
+
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 12px;
+            margin: 15px 0;
+        }
+
+        .gallery-item {
+            background: rgba(0,0,0,0.3);
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .gallery-item img { width: 100%; height: 120px; object-fit: cover; display: block; }
+        .gallery-item .g-info { padding: 8px; }
+        .gallery-item .g-info .g-name { font-size: 0.7rem; color: #ccc; }
+        .gallery-item .g-info .g-size { font-size: 0.65rem; color: #00b894; margin-top: 2px; }
+        .gallery-item .g-info .g-date { font-size: 0.6rem; color: #666; margin-top: 2px; }
+
+        .gallery-item .g-actions {
+            padding: 6px 8px; display: flex; gap: 4px;
+            border-top: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .gallery-item .g-actions button {
+            flex: 1; padding: 8px 4px; border: none; border-radius: 5px;
+            cursor: pointer; font-size: 0.65rem; font-weight: bold;
+        }
+
+        .g-btn-dl { background: rgba(0,184,148,0.2); color: #00b894; }
+        .g-btn-del { background: rgba(233,69,96,0.2); color: #e94560; }
+
+        .empty-state { text-align: center; padding: 50px 20px; color: #555; }
+        .empty-state .icon { font-size: 3rem; margin-bottom: 15px; }
+
+        .help-section {
+            background: rgba(0,0,0,0.3);
+            border-radius: 16px;
+            padding: 25px;
+            margin-top: 20px;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+
+        .help-section h2 { color: #ffd700; margin-bottom: 15px; }
+        .help-section h3 { color: #ffaa00; margin: 15px 0 8px; }
+        .help-section p, .help-section li { color: #bbb; line-height: 1.7; font-size: 0.9rem; }
+        .help-section ul { padding-left: 20px; }
+
+        .modal-overlay {
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.9);
+            z-index: 200;
+            justify-content: center; align-items: center;
+        }
+
+        .modal-overlay.active { display: flex; }
+
+        .modal {
+            background: #1a1a2e; border-radius: 16px; padding: 20px;
+            max-width: 95vw; max-height: 90vh; overflow: auto;
+            border: 1px solid rgba(255,215,0,0.3); text-align: center;
+        }
+
+        .modal img { max-width: 100%; max-height: 70vh; border-radius: 8px; }
+        .modal h3 { color: #ffd700; margin-bottom: 10px; font-size: 0.9rem; }
+
+        .modal .close-btn {
+            margin-top: 15px; padding: 12px 30px;
+            background: #e94560; color: #fff;
+            border: none; border-radius: 8px;
+            cursor: pointer; font-weight: bold; font-size: 1rem;
+        }
+
+        footer {
+            text-align: center; padding: 20px;
+            color: #555; border-top: 1px solid rgba(255,215,0,0.15);
+            margin-top: 30px; font-size: 0.8rem;
+        }
+
+        footer .pro { color: #ffd700; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>SharpVision <span class="badge">PRO</span></h1>
+    <p>Foto-App – Schärfen · Kanten · Speichern · Downloaden</p>
+</header>
+
+<div class="tabs">
+    <div class="tab active" data-tab="bearbeiten">🔍 Bearbeiten</div>
+    <div class="tab" data-tab="galerie">📁 Meine Fotos</div>
+    <div class="tab" data-tab="hilfe">❓ Hilfe</div>
+</div>
+
+<div class="container">
+
+    <!-- ===== BEARBEITEN ===== -->
+    <div class="tab-content active" id="tab-bearbeiten">
+
+        <!-- iOS-KOMPATIBLER UPLOAD: Input ist ÜBER der Zone, nicht hidden -->
+        <div class="upload-zone" id="uploadZone">
+            <input type="file"
+                   id="fileInput"
+                   accept="image/*,image/heic,image/heif,image/jpeg,image/png,image/webp"
+                   multiple
+                   aria-label="Bilder auswählen">
+            <h2>📷 Fotos hinzufügen</h2>
+            <p>Tippe hier um Fotos aus deiner Galerie auszuwählen</p>
+            <div class="ios-hint">📱 iPhone: Tippe hier → "Fotomediathek" → Bilder auswählen</div>
+        </div>
+
+        <div class="error-msg" id="errorMsg"></div>
+
+        <div class="controls">
+            <div class="control-group">
+                <label>Schärfe: <span id="levelValue">5</span>/10</label>
+                <input type="range" id="sharpLevel" min="1" max="10" value="5">
+            </div>
+            <div class="control-group">
+                <label>Kanten: <span id="edgeValue">3</span>/10</label>
+                <input type="range" id="edgeLevel" min="0" max="10" value="3">
+            </div>
+            <button class="btn btn-gold" id="btnSharpenAll" disabled>🔍 Alle schärfen</button>
+            <button class="btn btn-dark" id="btnEdgeAll" disabled>📐 Alle Kanten</button>
+            <button class="btn btn-green" id="btnSaveAll" disabled>💾 Alle speichern</button>
+            <button class="btn btn-green" id="btnDownloadAll" disabled>📥 Alle downloaden</button>
+            <button class="btn btn-red" id="btnClearAll" disabled>🗑️ Alle entfernen</button>
+        </div>
+
+        <div class="status" id="status"></div>
+
+        <div class="image-grid" id="imageGrid"></div>
+
+        <div class="empty-state" id="emptyState">
+            <div class="icon">🖼️</div>
+            <p>Noch keine Bilder.<br>Tippe oben auf "Fotos hinzufügen".</p>
+        </div>
+    </div>
+
+    <!-- ===== GALERIE ===== -->
+    <div class="tab-content" id="tab-galerie">
+        <div class="storage-bar">
+            <h3>💽 Speicher-Übersicht</h3>
+            <div class="storage-stats">
+                <div class="stat-box">
+                    <div class="num" id="statCount">0</div>
+                    <div class="lbl">Fotos</div>
+                </div>
+                <div class="stat-box">
+                    <div class="num" id="statSize">0 KB</div>
+                    <div class="lbl">Gesamtgröße</div>
+                </div>
+                <div class="stat-box">
+                    <div class="num" id="statSaved">0 KB</div>
+                    <div class="lbl">Gespart</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-green" id="btnDownloadGallery">📥 Alle als ZIP</button>
+            <button class="btn btn-red" id="btnClearGallery">🗑️ Galerie leeren</button>
+        </div>
+
+        <div class="gallery-grid" id="galleryGrid"></div>
+
+        <div class="empty-state" id="galleryEmpty">
+            <div class="icon">📁</div>
+            <p>Noch keine Fotos gespeichert.<br>Verarbeite Bilder und tippe auf "Speichern".</p>
+        </div>
+    </div>
+
+    <!-- ===== HILFE ===== -->
+    <div class="tab-content" id="tab-hilfe">
+        <div class="help-section">
+            <h2>❓ Hilfe</h2>
+
+            <h3>📱 iPhone / iPad</h3>
+            <ul>
+                <li>Tippe auf <strong>"Fotos hinzufügen"</strong></li>
+                <li>Wähle <strong>"Fotomediathek"</strong> oder <strong>"Foto aufnehmen"</strong></li>
+                <li>Wähle ein oder mehrere Bilder aus</li>
+                <li>Tippe auf <strong>"Fertig"</strong> (oben rechts)</li>
+                <li>HEIC-Fotos werden automatisch umgewandelt</li>
+            </ul>
+
+            <h3>🔍 Schärfen</h3>
+            <p>Stärke wählen → <strong>Alle schärfen</strong> → Ecken & Kanten werden klar.</p>
+
+            <h3>💾 Speichern</h3>
+            <p><strong>Alle speichern</strong> sichert Fotos in der Galerie (bleiben dauerhaft).</p>
+
+            <h3>📥 Download</h3>
+            <p><strong>Alle downloaden</strong> lädt alles als ZIP. Auf iPhone: ZIP wird in "Dateien" gespeichert.</p>
+
+            <h3>⚠️ Tipps</h3>
+            <ul>
+                <li>Stärke <strong>1–3</strong>: Leicht</li>
+                <li>Stärke <strong>4–6</strong>: Empfohlen</li>
+                <li>Stärke <strong>7–10</strong>: Stark (kann rauschen)</li>
+                <li>Alles läuft <strong>lokal</strong> – kein Upload</li>
+            </ul>
+        </div>
+    </div>
+
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+    <div class="modal">
+        <h3 id="modalTitle">Bild</h3>
+        <img id="modalImg" src="" alt="Vorschau">
+        <br>
+        <button class="close-btn" onclick="closeModal()">Schließen</button>
+    </div>
+</div>
+
+<footer>
+    <p><span class="pro">SharpVision Pro</span> &copy; 2026 – Milo | 100% lokal</p>
+</footer>
+
+<script>
+    // ===== ZUSTAND =====
+    let images = [];
+    let gallery = [];
+    let idCounter = 0;
+
+    // ===== ELEMENTE =====
+    const fileInput = document.getElementById('fileInput');
+    const imageGrid = document.getElementById('imageGrid');
+    const emptyState = document.getElementById('emptyState');
+    const statusEl = document.getElementById('status');
+    const errorMsg = document.getElementById('errorMsg');
+    const sharpLevel = document.getElementById('sharpLevel');
+    const edgeLevel = document.getElementById('edgeLevel');
+    const levelValue = document.getElementById('levelValue');
+    const edgeValue = document.getElementById('edgeValue');
+    const btnSharpenAll = document.getElementById('btnSharpenAll');
+    const btnEdgeAll = document.getElementById('btnEdgeAll');
+    const btnSaveAll = document.getElementById('btnSaveAll');
+    const btnDownloadAll = document.getElementById('btnDownloadAll');
+    const btnClearAll = document.getElementById('btnClearAll');
+    const galleryGrid = document.getElementById('galleryGrid');
+    const galleryEmpty = document.getElementById('galleryEmpty');
+
+    // ===== TABS (iOS-kompatibel) =====
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', function() {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+            this.classList.add('active');
+            document.getElementById('tab-' + this.dataset.tab).classList.add('active');
+            if (this.dataset.tab === 'galerie') renderGallery();
+        });
+    });
+
+    // ===== iOS-KOMPATIBLER FILE HANDLER =====
+    fileInput.addEventListener('change', function(e) {
+        const files = this.files;
+        if (!files || files.length === 0) {
+            showError('Keine Bilder ausgewählt. Versuche es erneut.');
+            return;
+        }
+        handleFiles(files);
+        // WICHTIG für iOS: Input zurücksetzen damit man dasselbe Bild nochmal wählen kann
+        this.value = '';
+    });
+
+    function handleFiles(files) {
+        hideError();
+        let count = 0;
+        let errors = 0;
+        const total = files.length;
+
+        showStatus('⏳ Lade ' + total + ' Bild(er)...');
+
+        for (let i = 0; i < files.length; i++) {
+            const file = files[i];
+
+            // Prüfe ob es ein Bild ist
+            if (!file.type.startsWith('image/') &&
+                !file.name.toLowerCase().endsWith('.heic') &&
+                !file.name.toLowerCase().endsWith('.heif')) {
+                errors++;
+                continue;
+            }
+
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                const dataUrl = e.target.result;
+
+                // Prüfe ob das Bild geladen werden kann
+                const testImg = new Image();
+                testImg.onload = function() {
+                    images.push({
+                        id: ++idCounter,
+                        name: file.name,
+                        originalDataUrl: dataUrl,
+                        processedDataUrl: null,
+                        originalSize: file.size,
+                        processedSize: 0
+                    });
+                    count++;
+                    checkDone();
+                };
+                testImg.onerror = function() {
+                    // HEIC oder nicht unterstütztes Format
+                    errors++;
+                    count++;
+                    checkDone();
+                };
+                testImg.src = dataUrl;
+            };
+
+            reader.onerror = function() {
+                errors++;
+                count++;
+                checkDone();
+            };
+
+            reader.readAsDataURL(file);
+        }
+
+        function checkDone() {
+            if (count + errors >= total) {
+                renderGrid();
+                if (errors > 0 && images.length === 0) {
+                    showError('⚠️ ' + errors + ' Bild(er) konnten nicht geladen werden. ' +
+                             'iPhone HEIC-Fotos: Bitte in Einstellungen → Kamera → Formate → "Am kompatibelsten" wählen.');
+                } else if (errors > 0) {
+                    showStatus('✅ ' + (total - errors) + ' Bild(er) geladen. ⚠️ ' + errors + ' nicht lesbar.');
+                } else {
+                    showStatus('✅ ' + total + ' Bild(er) erfolgreich hinzugefügt!');
+                }
+            }
+        }
+    }
+
+    // ===== GRID =====
+    function renderGrid() {
+        imageGrid.innerHTML = '';
+        emptyState.style.display = images.length === 0 ? 'block' : 'none';
+        const has = images.length > 0;
+        btnSharpenAll.disabled = !has;
+        btnEdgeAll.disabled = !has;
+        btnSaveAll.disabled = !has;
+        btnDownloadAll.disabled = !has;
+        btnClearAll.disabled = !has;
+
+        images.forEach(item => {
+            const card = document.createElement('div');
+            card.className = 'image-card';
+            const url = item.processedDataUrl || item.originalDataUrl;
+            const sizeStr = item.processedDataUrl
+                ? formatBytes(item.processedSize) + ' (vorher: ' + formatBytes(item.originalSize) + ')'
+                : formatBytes(item.originalSize);
+
+            card.innerHTML =
+                '<img src="' + url + '" alt="' + item.name + '">' +
+                '<div class="card-info">' +
+                    '<div class="name">🖼️ ' + item.name + '</div>' +
+                    '<div class="size">💾 ' + sizeStr + '</div>' +
+                '</div>' +
+                '<div class="card-actions">' +
+                    '<button class="card-btn-sharp" data-id="' + item.id + '">🔍</button>' +
+                    '<button class="card-btn-save" data-id="' + item.id + '">💾</button>' +
+                    '<button class="card-btn-del" data-id="' + item.id + '">🗑️</button>' +
+                '</div>';
+
+            // Event Listener (iOS-kompatibel)
+            card.querySelector('.card-btn-sharp').addEventListener('click', function() {
+                sharpenSingle(parseInt(this.dataset.id));
+            });
+            card.querySelector('.card-btn-save').addEventListener('click', function() {
+                saveSingle(parseInt(this.dataset.id));
+            });
+            card.querySelector('.card-btn-del').addEventListener('click', function() {
+                removeSingle(parseInt(this.dataset.id));
+            });
+            card.querySelector('img').addEventListener('click', function() {
+                openModal(item.name, url);
+            });
+
+            imageGrid.appendChild(card);
+        });
+    }
+
+    // ===== SCHÄRFUNG =====
+    function applySharpen(dataUrl, level, callback) {
+        const img = new Image();
+        img.onload = function() {
+            try {
+                const canvas = document.createElement('canvas');
+                const w = img.width, h = img.height;
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                const src = ctx.getImageData(0, 0, w, h);
+                const output = ctx.createImageData(w, h);
+                const s = src.data, d = output.data;
+
+                const center = 1 + level * 0.8;
+                const side = -(level * 0.2);
+                const kernel = [0, side, 0, side, center, side, 0, side, 0];
+                const kSum = kernel.reduce(function(a, b) { return a + b; }, 0);
+
+                for (let y = 0; y < h; y++) {
+                    for (let x = 0; x < w; x++) {
+                        let r = 0, g = 0, b = 0;
+                        for (let ky = -1; ky <= 1; ky++) {
+                            for (let kx = -1; kx <= 1; kx++) {
+                                const px = Math.min(w-1, Math.max(0, x+kx));
+                                const py = Math.min(h-1, Math.max(0, y+ky));
+                                const idx = (py * w + px) * 4;
+                                const ki = (ky+1)*3 + (kx+1);
+                                r += s[idx] * kernel[ki];
+                                g += s[idx+1] * kernel[ki];
+                                b += s[idx+2] * kernel[ki];
+                            }
+                        }
+                        const idx = (y * w + x) * 4;
+                        d[idx]   = Math.min(255, Math.max(0, r / kSum));
+                        d[idx+1] = Math.min(255, Math.max(0, g / kSum));
+                        d[idx+2] = Math.min(255, Math.max(0, b / kSum));
+                        d[idx+3] = 255;
+                    }
+                }
+                ctx.putImageData(output, 0, 0);
+                const resultUrl = canvas.toDataURL('image/png');
+                const resultSize = Math.round((resultUrl.length - 22) * 3 / 4);
+                callback(resultUrl, resultSize);
+            } catch(err) {
+                showError('Fehler beim Schärfen: ' + err.message);
+                callback(dataUrl, 0);
+            }
+        };
+        img.onerror = function() {
+            showError('Bild konnte nicht verarbeitet werden.');
+            callback(dataUrl, 0);
+        };
+        img.src = dataUrl;
+    }
+
+    // ===== KANTEN =====
+    function applyEdges(dataUrl, level, callback) {
+        const img = new Image();
+        img.onload = function() {
+            try {
+                const canvas = document.createElement('canvas');
+                const w = img.width, h = img.height;
+                canvas.width = w;
+                canvas.height = h;
+                const ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0);
+                const src = ctx.getImageData(0, 0, w, h);
+                const output = ctx.createImageData(w, h);
+                const s = src.data, d = output.data;
+                const sobelX = [-1,0,1,-2,0,2,-1,0,1];
+                const sobelY = [-1,-2,-1,0,0,0,1,2,1];
+                const factor = level / 3;
+
+                for (let y = 0; y < h; y++) {
+                    for (let x = 0; x < w; x++) {
+                        let gx = 0, gy = 0;
+                        for (let ky = -1; ky <= 1; ky++) {
+                            for (let kx = -1; kx <= 1; kx++) {
+                                const px = Math.min(w-1, Math.max(0, x+kx));
+                                const py = Math.min(h-1, Math.max(0, y+ky));
+                                const idx = (py * w + px) * 4;
+                                const gray = s[idx]*0.299 + s[idx+1]*0.587 + s[idx+2]*0.114;
+                                const ki = (ky+1)*3 + (kx+1);
+                                gx += gray * sobelX[ki];
+                                gy += gray * sobelY[ki];
+                            }
+                        }
+                        let mag = Math.min(255, Math.sqrt(gx*gx + gy*gy) * factor);
+                        const idx = (y * w + x) * 4;
+                        d[idx] = d[idx+1] = d[idx+2] = mag;
+                        d[idx+3] = 255;
+                    }
+                }
+                ctx.putImageData(output, 0, 0);
+                const resultUrl = canvas.toDataURL('image/png');
+                const resultSize = Math.round((resultUrl.length - 22) * 3 / 4);
+                callback(resultUrl, resultSize);
+            } catch(err) {
+                showError('Fehler: ' + err.message);
+                callback(dataUrl, 0);
+            }
+        };
+        img.onerror = function() { callback(dataUrl, 0); };
+        img.src = dataUrl;
+    }
+
+    // ===== EINZELN =====
+    function sharpenSingle(id) {
+        const item = images.find(function(i) { return i.id === id; });
+        if (!item) return;
+        showStatus('🔍 Schärfen: ' + item.name + '...');
+        applySharpen(item.originalDataUrl, parseInt(sharpLevel.value), function(url, size) {
+            item.processedDataUrl = url;
+            item.processedSize = size;
+            renderGrid();
+            showStatus('✅ Geschärft: ' + item.name);
+        });
+    }
+
+    function saveSingle(id) {
+        const item = images.find(function(i) { return i.id === id; });
+        if (!item) return;
+        const url = item.processedDataUrl || item.originalDataUrl;
+        const size = item.processedDataUrl ? item.processedSize : item.originalSize;
+        saveToGallery(item.name, url, size, item.originalSize);
+        showStatus('💾 Gespeichert: ' + item.name);
+    }
+
+    function removeSingle(id) {
+        images = images.filter(function(i) { return i.id !== id; });
+        renderGrid();
+    }
+
+    // ===== ALLE =====
+    btnSharpenAll.addEventListener('click', function() {
+        const level = parseInt(sharpLevel.value);
+        let done = 0;
+        showStatus('🔍 Schärfung läuft... 0/' + images.length);
+        images.forEach(function(item) {
+            applySharpen(item.originalDataUrl, level, function(url, size) {
+                item.processedDataUrl = url;
+                item.processedSize = size;
+                done++;
+                showStatus('🔍 Schärfung... ' + done + '/' + images.length);
+                if (done === images.length) {
+                    renderGrid();
+                    showStatus('✅ Alle ' + images.length + ' Bilder geschärft!');
+                }
+            });
+        });
+    });
+
+    btnEdgeAll.addEventListener('click', function() {
+        const level = parseInt(edgeLevel.value);
+        let done = 0;
+        showStatus('📐 Kanten... 0/' + images.length);
+        images.forEach(function(item) {
+            applyEdges(item.originalDataUrl, level, function(url, size) {
+                item.processedDataUrl = url;
+                item.processedSize = size;
+                done++;
+                if (done === images.length) {
+                    renderGrid();
+                    showStatus('✅ Kanten in allen Bildern erkannt!');
+                }
+            });
+        });
+    });
+
+    btnSaveAll.addEventListener('click', function() {
+        images.forEach(function(item) {
+            const url = item.processedDataUrl || item.originalDataUrl;
+            const size = item.processedDataUrl ? item.processedSize : item.originalSize;
+            saveToGallery(item.name, url, size, item.originalSize);
+        });
+        showStatus('💾 Alle ' + images.length + ' Bilder gespeichert!');
+    });
+
+    btnDownloadAll.addEventListener('click', function() {
+        downloadAsZip(images.map(function(i) {
+            return {
+                name: i.name.replace(/\.[^.]+$/, '') + '_sharp.png',
+                url: i.processedDataUrl || i.originalDataUrl
+            };
+        }));
+    });
+
+    btnClearAll.addEventListener('click', function() {
+        images = [];
+        renderGrid();
+        showStatus('🗑️ Alle entfernt');
+    });
+
+    // ===== GALERIE =====
+    function saveToGallery(name, dataUrl, size, originalSize) {
+        gallery.push({
+            id: Date.now() + Math.random(),
+            name: name.replace(/\.[^.]+$/, '') + '_sharp.png',
+            dataUrl: dataUrl,
+            size: size,
+            originalSize: originalSize,
+            date: new Date().toLocaleString('de-DE')
+        });
+        saveGalleryToDB();
+    }
+
+    function renderGallery() {
+        galleryGrid.innerHTML = '';
+        galleryEmpty.style.display = gallery.length === 0 ? 'block' : 'none';
+
+        let totalSize = 0, totalOriginal = 0;
+        gallery.forEach(function(item) {
+            totalSize += item.size;
+            totalOriginal += item.originalSize;
+
+            const el = document.createElement('div');
+            el.className = 'gallery-item';
+            el.innerHTML =
+                '<img src="' + item.dataUrl + '" alt="' + item.name + '">' +
+                '<div class="g-info">' +
+                    '<div class="g-name">🖼️ ' + item.name + '</div>' +
+                    '<div class="g-size">💾 ' + formatBytes(item.size) + '</div>' +
+                    '<div class="g-date">📅 ' + item.date + '</div>' +
+                '</div>' +
+                '<div class="g-actions">' +
+                    '<button class="g-btn-dl">📥</button>' +
+                    '<button class="g-btn-del">🗑️</button>' +
+                '</div>';
+
+            el.querySelector('.g-btn-dl').addEventListener('click', function() {
+                downloadSingle(item.name, item.dataUrl);
+            });
+            el.querySelector('.g-btn-del').addEventListener('click', function() {
+                deleteFromGallery(item.id);
+            });
+            el.querySelector('img').addEventListener('click', function() {
+                openModal(item.name, item.dataUrl);
+            });
+
+            galleryGrid.appendChild(el);
+        });
+
+        document.getElementById('statCount').textContent = gallery.length;
+        document.getElementById('statSize').textContent = formatBytes(totalSize);
+        document.getElementById('statSaved').textContent = formatBytes(Math.max(0, totalOriginal - totalSize));
+    }
+
+    function deleteFromGallery(id) {
+        gallery = gallery.filter(function(g) { return g.id !== id; });
+        saveGalleryToDB();
+        renderGallery();
+    }
+
+    document.getElementById('btnClearGallery').addEventListener('click', function() {
+        if (confirm('Alle gespeicherten Fotos löschen?')) {
+            gallery = [];
+            saveGalleryToDB();
+            renderGallery();
+        }
+    });
+
+    document.getElementById('btnDownloadGallery').addEventListener('click', function() {
+        downloadAsZip(gallery.map(function(g) { return { name: g.name, url: g.dataUrl }; }));
+    });
+
+    // ===== DOWNLOAD =====
+    function downloadSingle(name, dataUrl) {
+        const a = document.createElement('a');
+        a.download = name;
+        a.href = dataUrl;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+    }
+
+    function downloadAsZip(items) {
+        if (items.length === 0) return;
+        showStatus('📦 ZIP wird erstellt...');
+        const zip = new JSZip();
+        items.forEach(function(item) {
+            const base64 = item.url.split(',')[1];
+            if (base64) zip.file(item.name, base64, { base64: true });
+        });
+        zip.generateAsync({ type: 'blob' }).then(function(blob) {
+            const a = document.createElement('a');
+            a.download = 'SharpVision_Pro_Export.zip';
+            a.href = URL.createObjectURL(blob);
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(a.href);
+            showStatus('✅ ZIP heruntergeladen (' + items.length + ' Bilder)');
+        });
+    }
+
+    // ===== IndexedDB =====
+    let db;
+    function openDB() {
+        return new Promise(function(resolve) {
+            try {
+                const req = indexedDB.open('SharpVisionPro', 1);
+                req.onupgradeneeded = function(e) {
+                    const d = e.target.result;
+                    if (!d.objectStoreNames.contains('photos')) {
+                        d.createObjectStore('photos', { keyPath: 'id' });
+                    }
+                };
+                req.onsuccess = function(e) { db = e.target.result; resolve(); };
+                req.onerror = function() { resolve(); };
+            } catch(e) { resolve(); }
+        });
+    }
+
+    function saveGalleryToDB() {
+        if (!db) return;
+        try {
+            const tx = db.transaction('photos', 'readwrite');
+            const store = tx.objectStore('photos');
+            store.clear();
+            gallery.forEach(function(item) { store.put(item); });
+        } catch(e) {}
+    }
+
+    function loadGalleryFromDB() {
+        return new Promise(function(resolve) {
+            if (!db) { resolve([]); return; }
+            try {
+                const tx = db.transaction('photos', 'readonly');
+                const req = tx.objectStore('photos').getAll();
+                req.onsuccess = function() { resolve(req.result || []); };
+                req.onerror = function() { resolve([]); };
+            } catch(e) { resolve([]); }
+        });
+    }
+
+    // ===== MODAL =====
+    function openModal(name, url) {
+        document.getElementById('modalTitle').textContent = name;
+        document.getElementById('modalImg').src = url;
+        document.getElementById('modal').classList.add('active');
+    }
+
+    function closeModal() {
+        document.getElementById('modal').classList.remove('active');
+    }
+
+    document.getElementById('modal').addEventListener('click', function(e) {
+        if (e.target === this) closeModal();
+    });
+
+    // ===== REGELER =====
+    sharpLevel.addEventListener('input', function() { levelValue.textContent = this.value; });
+    edgeLevel.addEventListener('input', function() { edgeValue.textContent = this.value; });
+
+    // ===== HILFSFUNKTIONEN =====
+    function formatBytes(bytes) {
+        if (!bytes || bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
+    }
+
+    function showStatus(msg) {
+        statusEl.textContent = msg;
+        hideError();
+    }
+
+    function showError(msg) {
+        errorMsg.textContent = msg;
+        errorMsg.style.display = 'block';
+    }
+
+    function hideError() {
+        errorMsg.style.display = 'none';
+    }
+
+    // ===== INIT =====
+    (async function() {
+        await openDB();
+        gallery = await loadGalleryFromDB();
+        renderGallery();
+    })();
+</script>
+
+</body>
+</html>
